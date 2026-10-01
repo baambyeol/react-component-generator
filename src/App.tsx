@@ -3,6 +3,8 @@ import { PromptInput } from './components/PromptInput';
 import { ComponentCard } from './components/ComponentCard';
 import { useComponentGenerator } from './hooks/useComponentGenerator';
 import type { Provider } from './types';
+import { loadStored, saveStored } from './utils/storage';
+import { addToHistory } from './utils/promptHistory';
 import './App.css';
 
 const PROVIDER_CONFIG = {
@@ -10,16 +12,44 @@ const PROVIDER_CONFIG = {
   google: { label: 'Google', placeholder: 'AIza...' },
 } as const;
 
+const KEYS = {
+  apiKeys: 'rcg:apiKeys',
+  provider: 'rcg:provider',
+  history: 'rcg:promptHistory',
+} as const;
+
+type ApiKeys = Record<Provider, string>;
+
+const isProvider = (v: unknown): v is Provider => v === 'anthropic' || v === 'google';
+const isStringArray = (v: unknown): v is string[] =>
+  Array.isArray(v) && v.every((x) => typeof x === 'string');
+const isApiKeys = (v: unknown): v is ApiKeys =>
+  typeof v === 'object' && v !== null &&
+  typeof (v as ApiKeys).anthropic === 'string' && typeof (v as ApiKeys).google === 'string';
+
 function App() {
-  const [apiKey, setApiKey] = useState('');
+  // API 키는 Provider별로 따로 보관해, Provider를 바꿔도 각자의 키가 유지된다.
+  const [apiKeys, setApiKeys] = useState<ApiKeys>(() =>
+    loadStored<ApiKeys>(KEYS.apiKeys, { anthropic: '', google: '' }, isApiKeys),
+  );
+  const [provider, setProvider] = useState<Provider>(() =>
+    loadStored<Provider>(KEYS.provider, 'google', isProvider),
+  );
+  const [history, setHistory] = useState<string[]>(() =>
+    loadStored<string[]>(KEYS.history, [], isStringArray),
+  );
+  const apiKey = apiKeys[provider];
   const [showKey, setShowKey] = useState(false);
-  const [provider, setProvider] = useState<Provider>('google');
   const [envKeys, setEnvKeys] = useState<Record<Provider, boolean>>({
     anthropic: false,
     google: false,
   });
   const { components, isLoading, error, generate, removeComponent, clearAll } =
     useComponentGenerator();
+
+  useEffect(() => saveStored(KEYS.apiKeys, apiKeys), [apiKeys]);
+  useEffect(() => saveStored(KEYS.provider, provider), [provider]);
+  useEffect(() => saveStored(KEYS.history, history), [history]);
 
   useEffect(() => {
     fetch('/api/config')
@@ -35,12 +65,12 @@ function App() {
       alert(`${PROVIDER_CONFIG[provider].label} API 키를 입력하거나 .env에 설정해주세요.`);
       return;
     }
+    setHistory((prev) => addToHistory(prev, prompt));
     generate(prompt, apiKey || undefined, provider);
   };
 
   const handleProviderChange = (newProvider: Provider) => {
     setProvider(newProvider);
-    setApiKey('');
   };
 
   const activeProvider = PROVIDER_CONFIG[provider].label;
@@ -72,7 +102,7 @@ function App() {
           aria-label="컴포넌트 생성"
         >
           <span className="console-frame" aria-hidden="true" />
-          <PromptInput onGenerate={handleGenerate} isLoading={isLoading} />
+          <PromptInput onGenerate={handleGenerate} isLoading={isLoading} history={history} />
         </section>
 
         <aside className="settings" aria-label="실행 설정">
@@ -100,7 +130,7 @@ function App() {
                 id="api-key"
                 type={showKey ? 'text' : 'password'}
                 value={apiKey}
-                onChange={(e) => setApiKey(e.target.value)}
+                onChange={(e) => setApiKeys((prev) => ({ ...prev, [provider]: e.target.value }))}
                 placeholder={
                   hasEnvKey
                     ? '서버 키 사용 중 (입력 시 덮어씀)'
