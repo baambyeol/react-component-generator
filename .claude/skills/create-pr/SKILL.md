@@ -1,15 +1,16 @@
 ---
 name: create-pr
-description: 현재 브랜치의 변경사항을 분석해 Pull Request를 만든다. 프로젝트가 한국 프로젝트면 한국어 템플릿, 해외 오픈소스 프로젝트면 영문 템플릿(references/pr-template.md)으로 본문을 작성하고 gh CLI로 생성한다. "PR 만들어줘", "PR 올려줘", "풀리퀘스트 생성", "create a PR", "open a pull request", "작업 끝났으니 PR로 올려" 같은 요청이나, 브랜치 작업을 마치고 리뷰를 받으려는 맥락에서 반드시 이 스킬을 사용한다. 커밋은 하지 않는다(commit 스킬 담당).
+description: 현재 브랜치의 변경사항을 분석해 Pull Request를 만든다. 프로젝트가 한국 프로젝트면 한국어 템플릿, 해외 오픈소스 프로젝트면 영문 템플릿(references/ 폴더의 언어별 템플릿)으로 본문을 작성하고 gh CLI로 생성한다. "PR 만들어줘", "PR 올려줘", "풀리퀘스트 생성", "create a PR", "open a pull request", "작업 끝났으니 PR로 올려" 같은 요청이나, 브랜치 작업을 마치고 리뷰를 받으려는 맥락에서 반드시 이 스킬을 사용한다. 커밋은 하지 않는다(commit 스킬 담당).
 context: fork
-allowed-tools: Bash(git *), Bash(gh *), Read, Grep, Glob
+agent: general-purpose
+allowed-tools: Bash(git *), Bash(gh *), Bash(bun *), Read, Grep, Glob
 ---
 
 # create-pr
 
 브랜치의 변경 전체를 읽고, 프로젝트의 언어 관례에 맞는 템플릿으로 본문을 채워 PR을 만든다. 사용자가 PR 생성을 요청한 것 자체가 승인이므로 확인을 되묻지 않고 끝까지 진행한다.
 
-이 스킬은 `context: fork`로 실행된다. diff와 로그를 읽는 데 쓴 긴 탐색 내용이 메인 대화에 쌓이지 않도록 분리하기 위해서다. 메인 대화의 맥락을 볼 수 없다는 전제로, 아래 절차에서 필요한 정보를 직접 수집하고, 마지막에 PR URL과 핵심 요약만 돌려준다.
+이 스킬은 `context: fork`로 실행되어 서브 에이전트(`agent: general-purpose`)가 PR 생성까지 전부 수행한다. diff와 로그를 읽는 데 쓴 긴 탐색 내용이 메인 대화에 쌓이지 않도록 분리하기 위해서다. 메인 대화의 맥락을 볼 수 없다는 전제로, 아래 절차에서 필요한 정보를 직접 수집하고, 마지막에 PR URL과 핵심 요약만 돌려준다.
 
 ## 절차
 
@@ -43,7 +44,14 @@ git diff origin/<base>...HEAD
 
 ### 3. 템플릿 언어 선택
 
-한국 프로젝트인지 해외 오픈소스인지에 따라 `references/pr-template.md`의 한국어 또는 영문 템플릿을 고른다. 리뷰어가 읽는 언어와 맞아야 PR이 실제로 읽히기 때문이다. 아래 신호를 위에서부터 보고, 처음 확실한 결론이 나오면 멈춘다.
+한국 프로젝트인지 해외 오픈소스인지에 따라 템플릿 파일 하나를 고른다.
+
+| 판단 | 템플릿 파일 |
+|---|---|
+| 한국 프로젝트 | `references/pr-template.ko.md` |
+| 해외 오픈소스 프로젝트 | `references/pr-template.en.md` |
+
+ 리뷰어가 읽는 언어와 맞아야 PR이 실제로 읽히기 때문이다. 아래 신호를 위에서부터 보고, 처음 확실한 결론이 나오면 멈춘다.
 
 1. **프로젝트가 명시한 규칙**: `AGENTS.md`/`CLAUDE.md`/`CONTRIBUTING.md`에 언어·PR 규칙이 있으면 그대로 따른다.
 2. **기존 PR**: `gh pr list --state all --limit 5`의 제목·본문 언어.
@@ -55,7 +63,7 @@ git diff origin/<base>...HEAD
 
 ### 4. 본문 작성
 
-`references/pr-template.md`를 읽어 선택한 언어의 템플릿을 채운다.
+선택한 템플릿 파일 하나만 읽어서 채운다(다른 언어 파일은 읽지 않는다).
 
 - 제목은 한 줄, 70자 이내. 프로젝트가 커밋 컨벤션(`feat|fix|refactor|chore: 요약`)을 쓰면 PR 제목도 같은 형식을 따른다. 커밋이 하나면 그 메시지를 기반으로 하고, 여러 개면 전체를 아우르는 한 줄을 쓴다.
 - "무엇을 바꿨는지"는 diff로 알 수 있으니 짧게, "왜 바꿨는지"와 리뷰어가 주의할 점에 분량을 쓴다.
