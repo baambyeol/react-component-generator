@@ -191,6 +191,24 @@
   color: var(--muted);
 }
 
+.prompt-count {
+  margin-left: auto;
+  font-family: var(--font-code);
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.prompt-count--over {
+  color: var(--signal);
+  font-weight: 600;
+}
+
+.prompt-error {
+  margin: 10px 0 0;
+  font-size: 13px;
+  color: var(--signal);
+}
+
 .btn-generate {
   padding: 10px 24px;
   border: 0;

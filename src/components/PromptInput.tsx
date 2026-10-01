@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { MAX_PROMPT_LENGTH, validatePrompt } from '../utils/validatePrompt';
 
 interface PromptInputProps {
   onGenerate: (prompt: string) => void;
@@ -16,10 +17,11 @@ const EXAMPLES = [
 
 export function PromptInput({ onGenerate, isLoading }: PromptInputProps) {
   const [prompt, setPrompt] = useState('');
+  const validation = validatePrompt(prompt);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (prompt.trim() && !isLoading) {
+    if (prompt.trim() && validation.valid && !isLoading) {
       onGenerate(prompt.trim());
     }
   };
@@ -37,6 +39,7 @@ export function PromptInput({ onGenerate, isLoading }: PromptInputProps) {
           placeholder="예: 고객 목록 테이블 위에 들어갈 검색 필터 바를 만들어줘. 상태, 담당자, 날짜 범위 필터가 필요해."
           className="prompt-textarea"
           aria-label="만들고 싶은 컴포넌트 설명"
+          aria-invalid={!validation.valid}
           rows={4}
           onKeyDown={(e) => {
             if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
@@ -44,12 +47,22 @@ export function PromptInput({ onGenerate, isLoading }: PromptInputProps) {
             }
           }}
         />
+        {validation.message && (
+          <p role="alert" className="prompt-error">
+            {validation.message}
+          </p>
+        )}
         <div className="prompt-bar">
           <span className="prompt-hint">Ctrl + Enter로도 생성할 수 있어요</span>
+          <span
+            className={`prompt-count${validation.valid ? '' : ' prompt-count--over'}`}
+          >
+            {validation.length} / {MAX_PROMPT_LENGTH}
+          </span>
           <button
             type="submit"
             className="btn-generate"
-            disabled={!prompt.trim() || isLoading}
+            disabled={!prompt.trim() || !validation.valid || isLoading}
           >
             {isLoading ? (
               <span className="loading-spinner">생성 중...</span>
